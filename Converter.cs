@@ -6,52 +6,50 @@ namespace LocPackBin
     {
         public static void ProcessFile(string path)
         {
-            bool isMenus = path.Contains("menus");
-            bool isSubtitles = path.Contains("subtitles");
+            bool isMenus = Path.GetFileNameWithoutExtension(path).Contains("menus");
+            bool isSubtitles = Path.GetFileNameWithoutExtension(path).Contains("subtitles");
+            bool hasProcessed = false;
             
             // First two lines from each .locpack
-            const string menus = "06000000A7780000";
-            const string subtitles = "070000001D000100";
+            const string menus = "06000000A7780000"; // 6,,, // 30887,,,
+            const string subtitles = "070000001D000100"; // 7,,,,, // 65565,,,,,
 
-            List<string> origList = File.ReadAllText(path).Split("\r\n").ToList();
+            string[] locPackArray = File.ReadAllText(path).Split(Environment.NewLine).Skip(2).ToArray(); // Skip first two lines
             
-            origList.RemoveRange(0, 2); // Remove first two lines when processing file
-
-            bool hasProcessed = false;
-            List<string> newList = [];
+            List<string> hexList = [];
 
             if (isMenus)
             {
-                newList.Add(menus);
+                hexList.Add(menus); // Add first two lines
                 
-                foreach (var line in origList)
+                foreach (var line in locPackArray)
                 {
-                    if (line != "")
+                    if (!string.IsNullOrWhiteSpace(line))
                     {
                         string newline = GetLine(line);
-                        newList.Add(newline);
+                        hexList.Add(newline);
                     }
                 }
 
-                if (origList.Count == newList.Count)
+                if (locPackArray.Length == hexList.Count)
                 {
                     hasProcessed = true;
                 }
             }
             else if (isSubtitles)
             {
-                newList.Add(subtitles);
+                hexList.Add(subtitles); // Add first two lines
                 
-                foreach (var line in origList)
+                foreach (var line in locPackArray)
                 {
-                    if (line != "")
+                    if (!string.IsNullOrWhiteSpace(line))
                     {
                         string newline = GetLineSubtitles(line);
-                        newList.Add(newline);
+                        hexList.Add(newline);
                     }
                 }
                 
-                if (origList.Count == newList.Count)
+                if (locPackArray.Length == hexList.Count)
                 {
                     hasProcessed = true;
                 }
@@ -59,7 +57,14 @@ namespace LocPackBin
 
             if (hasProcessed)
             {
-                File.WriteAllBytes(path.Replace("locpack", "locpackbin"), Convert.FromHexString(string.Join("", newList)));
+                using (var writer = new BinaryWriter(new FileStream(Path.ChangeExtension(path, ".locpackbin"), FileMode.Create)))
+                {
+                    foreach (var line in hexList)
+                    {
+                        writer.Write(Convert.FromHexString(line));
+                    }
+                }
+
                 Console.WriteLine($"Converted: {Path.GetFileName(path)} to {Path.GetFileNameWithoutExtension(path)}.locpackbin");
             }
             else
@@ -72,14 +77,14 @@ namespace LocPackBin
         {
             string[] splitLine = line.Split([','], 4);
             
-            string uid  = splitLine[0];
+            string guid  = splitLine[0];
             int lineVersion = int.Parse(splitLine[1]);
             int maxLength = int.Parse(splitLine[2]);
             string text = splitLine[3];
 
             if (text.StartsWith('"'))
             {
-                text = text.Substring(1, text.Length - 2); // Remove quotation marks from beginning and end of line
+                text = text[1..^1]; // Remove quotation marks from beginning and end of line
             }
             
             text = text.Replace("\"\"", "\""); // Any line with double quotation marks must be replaced with single
@@ -89,7 +94,7 @@ namespace LocPackBin
                 text = text.TrimStart('/'); // Remove forward slash from beginning of line if present
             }
 
-            string hexGuid = GetGuid(uid);
+            string hexGuid = GetGuid(guid);
             string hexLineVersion = GetIntHex(lineVersion);
             string hexMaxLength = GetIntHex(maxLength);
             string hexText = GetStringHex(text);
@@ -99,14 +104,14 @@ namespace LocPackBin
 
             if (textLength == 0)
             {
-                hexMaxLength = "0000"; // If text is empty, zero out hexMaxLength
+                hexMaxLength = "0000"; // If text is empty, zero hexMaxLength
             }
             
-            string hexZeroed8 = "00000000";
+            string hexZeroed8 = "00000000"; // Zeroed
             
-            if (lineVersion.ToString().StartsWith('-'))
+            if (lineVersion < 0)
             {
-                hexZeroed8 = "0000";
+                hexZeroed8 = "0000"; // If lineVersion is negative, zeroed bytes reduced by two
             }
             
             string newLine = hexGuid + hexLineVersion + hexMaxLength + hexZeroed8 + hexTextLength + hexText;
@@ -118,16 +123,16 @@ namespace LocPackBin
         {
             string[] splitLine = line.Split([','], 6);
             
-            string uid  = splitLine[0];
-            int unk0 = int.Parse(splitLine[1]);
-            int unk1 = int.Parse(splitLine[2]);
-            int unk2 = int.Parse(splitLine[3]);
-            int unk3 = int.Parse(splitLine[4]);
+            string guid  = splitLine[0];
+            int unk0 = int.Parse(splitLine[1]); // Unknown
+            int unk1 = int.Parse(splitLine[2]); // Unknown
+            int unk2 = int.Parse(splitLine[3]); // Unknown
+            int unk3 = int.Parse(splitLine[4]); // Unknown
             string text = splitLine[5];
 
             if (text.StartsWith('"'))
             {
-                text = text.Substring(1, text.Length - 2);  // Remove quotation marks from start and end of line
+                text = text[1..^1]; // Remove quotation marks from beginning and end of line
             }
             
             text = text.Replace("\"\"", "\""); // Any line with double quotation marks must be replaced with single
@@ -137,7 +142,7 @@ namespace LocPackBin
                 text = text.TrimStart('/'); // Remove forward slash from line if present
             }
 
-            string hexGuid = GetGuid(uid);
+            string hexGuid = GetGuid(guid);
             string hexUnk0 = GetIntHex(unk0);
             string hexUnk1 = GetIntHex(unk1);
             string hexUnk2 = GetIntHex(unk2);
@@ -147,26 +152,26 @@ namespace LocPackBin
             int textLength = GetHexLength(hexText);
             string hexTextLength = GetIntHex(textLength);
 
-            string hexZeroed4 = "0000"; 
+            string hexZeroed4 = "0000"; // Zeroed
 
-            if (unk0.ToString().StartsWith('-'))
+            if (unk0 < 0)
             {
-                hexZeroed4 = "";
+                hexZeroed4 = ""; // If unk0 is negative, remove zeroed bytes
             }
 
             string hexZeroed2 = "";
-            string hexZeroed8 = "00000000";
+            string hexZeroed8 = "00000000"; // Zeroed
             
-            if (unk0 == 4 & textLength == 0)
+            if (unk0 == 4 && textLength == 0)
             {
-                hexUnk2 = "0004";
-                hexZeroed2 = "00";
-                hexZeroed8 = "000000";
+                hexUnk2 = "0004"; // Reverse
+                hexZeroed2 = "00"; // Zeroed
+                hexZeroed8 = "000000"; // Zeroed bytes reduced by one
             }
             
             string newLine = hexGuid + hexUnk0 + hexZeroed4 + hexUnk1 + hexZeroed2 + hexUnk2 + hexZeroed8 + hexUnk3 + "0000" + hexTextLength + hexText;
 
-            if (unk0 != 4 & textLength == 0)
+            if (unk0 != 4 && textLength == 0)
             {
                 newLine = newLine.Replace("040000", "000004");
             }
@@ -185,7 +190,7 @@ namespace LocPackBin
             string group3 = ReverseGroup(guidGroups[3]);
             string group4 = ReverseGroup(guidGroups[4]);
             
-            string newGuid = group2 + group1 + group0 + group4 + group3; // Correct Order
+            string newGuid = group2 + group1 + group0 + group4 + group3; // Corrected Order
             
             return newGuid.ToUpper();
         }

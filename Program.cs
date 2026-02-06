@@ -3,11 +3,12 @@ using LocPackBin;
 
 if (args.Length > 0 && File.Exists(args[0]))
 {
-    string[] allowedFiles = ["menus", "subtitles"];
-    
     var path = args[0];
+    
+    string[] allowedFiles = ["menus", "subtitles"];
+    bool isAllowed = allowedFiles.Any(Path.GetFileNameWithoutExtension(path).Contains);
 
-    if (allowedFiles.Any(path.Contains) & Path.GetExtension(path) == ".locpack")
+    if (isAllowed && Path.GetExtension(path) == ".locpack")
     {
         Console.WriteLine($"Converting: {Path.GetFileName(path)}");
         Console.WriteLine();
@@ -16,7 +17,7 @@ if (args.Length > 0 && File.Exists(args[0]))
         Console.WriteLine("Press any key to exit...");
         Console.ReadLine();
     }
-    else if (allowedFiles.Any(path.Contains) & Path.GetExtension(path) == ".locpackbin")
+    else if (isAllowed && Path.GetExtension(path) == ".locpackbin")
     {
         Console.WriteLine($"Error: {Path.GetFileName(path)} has already been converted.");
         Console.WriteLine();
