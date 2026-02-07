@@ -1,34 +1,43 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using LocPackBin;
 
-if (args.Length > 0 && File.Exists(args[0]))
+Console.WriteLine("Snowdrop LocPack Converter");
+Console.WriteLine();
+
+if (args.Length == 0)
+{
+    Console.WriteLine("No file specified");
+    Console.WriteLine("Drag and drop a .locpack or .locpackbin file onto the executable");
+}
+else if (File.Exists(args[0]))
 {
     var path = args[0];
+    var ext = Path.GetExtension(path);
     
-    string[] allowedFiles = ["menus", "subtitles"];
-    bool isAllowed = allowedFiles.Any(Path.GetFileNameWithoutExtension(path).Contains);
-
-    if (isAllowed && Path.GetExtension(path) == ".locpack")
+    if (ext is ".locpack" or ".locpackbin")
     {
         Console.WriteLine($"Converting: {Path.GetFileName(path)}");
         Console.WriteLine();
-        Converter.ProcessFile(path);
-        Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadLine();
     }
-    else if (isAllowed && Path.GetExtension(path) == ".locpackbin")
+    
+    if (ext == ".locpack")
     {
-        Console.WriteLine($"Error: {Path.GetFileName(path)} has already been converted.");
-        Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadLine();
+        LocPackConverter.FileToBin(path);
+    }
+    else if (ext == ".locpackbin")
+    {
+        LocPackConverter.FileFromBin(path);
     }
     else
     {
         Console.WriteLine($"Error: {Path.GetFileName(path)} is not an accepted file");
-        Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadLine();
     }
 }
+else
+{
+    Console.WriteLine($"Error: {args[0]} could not be found");
+}
+
+Console.WriteLine();
+Console.WriteLine("Press any key to exit...");
+Console.ReadLine();
